@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bus Simulator in C</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a3e 0%, #2d2d6e 50%, #1a1a3e 100%);
+      padding: 20px 30px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 2px solid #4a4aff44;
+      box-shadow: 0 4px 20px #0008;
+    }
+    header .logo { font-size: 2rem; }
+    header h1 { font-size: 1.6rem; font-weight: 700; color: #a0a0ff; letter-spacing: 1px; }
+    header p  { font-size: 0.85rem; color: #7070cc; margin-top: 2px; }
+
+    .live-time {
+      margin-left: auto;
+      background: #1e1e4a;
+      border: 1px solid #4a4aff44;
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      color: #9090dd;
+      text-align: right;
+    }
+    .live-time span { display: block; font-weight: 700; font-size: 1rem; color: #c0c0ff; }
+
+    .main-layout {
+      display: flex;
+      height: calc(100vh - 90px);
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 220px;
+      background: #12122a;
+      border-right: 1px solid #2a2a5a;
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sidebar-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: #8888cc;
+      font-size: 0.9rem;
+      text-align: left;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+      width: 100%;
+    }
+    .sidebar-btn:hover { background: #1e1e45; color: #c0c0ff; }
+    .sidebar-btn.active {
+      background: #1e1e4a;
+      color: #a0a0ff;
+      border-left-color: #6666ff;
+    }
+    .sidebar-btn .icon { font-size: 1.2rem; min-width: 24px; }
+
+    /* CONTENT */
+    .content {
+      flex: 1;
+      padding: 28px;
+      overflow-y: auto;
+    }
+
+    /* PANELS */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .panel-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #a0a0ff;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* CARDS ROW */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #1a1a3a;
+      border: 1px solid #2a2a5a;
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 1.8rem; font-weight: 800; color: #8888ff; }
+    .stat-card .lbl { font-size: 0.78rem; color: #6666aa; margin-top: 4px; }
+
+    /* FORM */
+    .form-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px; }
+    .form-group label { font-size: 0.8rem; color: #8888bb; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group input, .form-group select {
+      background: #1a1a3a;
+      border: 1px solid #3a3a6a;
+      border-radius: 8px;
+      color: #e0e0f0;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: #6666ff; }
+    .form-group select option { background: #1a1a3a; }
+
+    /* BUTTONS */
+    .btn {
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg,#5555ff,#8844ff); color: #fff; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px #5555ff66; }
+    .btn-danger  { background: linear-gradient(135deg,#ff4455,#cc2244); color: #fff; }
+    .btn-danger:hover  { transform: translateY(-1px); box-shadow: 0 4px 14px #ff445566; }
+    .btn-warning { background: linear-gradient(135deg,#ff8800,#cc6600); color: #fff; }
+    .btn-warning:hover { transform: translateY(-1px); }
+    .btn-success { background: linear-gradient(135deg,#22cc66,#119944); color: #fff; }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead tr { background: #1e1e4a; }
+    thead th { padding: 12px 14px; text-align: left; color: #8888cc; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+    tbody tr { border-bottom: 1px solid #1e1e3a; transition: background 0.15s; }
+    tbody tr:hover { background: #1a1a38; }
+    tbody td { padding: 11px 14px; color: #d0d0f0; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-green { background: #1a3a2a; color: #44dd88; border: 1px solid #22aa55; }
+    .badge-red   { background: #3a1a1a; color: #ff6677; border: 1px solid #aa2233; }
+    .badge-blue  { background: #1a2a3a; color: #66aaff; border: 1px solid #2255aa; }
+    .badge-night { background: #2a1a3a; color: #cc88ff; border: 1px solid #7733aa; }
+    .safety-bar { display: flex; align-items: center; gap: 8px; }
+    .safety-fill { height: 6px; border-radius: 3px; background: linear-gradient(90deg,#ff4455,#ffaa00,#22cc66); transition: width 0.3s; }
+    .safety-track { width: 80px; height: 6px; background: #2a2a4a; border-radius: 3px; overflow: hidden; }
+
+    /* TERMINAL */
+    #terminal {
+      background: #0a0a14;
+      border: 1px solid #2a2a5a;
+      border-radius: 12px;
+      padding: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.88rem;
+      min-height: 300px;
+      max-height: 420px;
+      overflow-y: auto;
+      line-height: 1.7;
+    }
+    .t-green  { color: #44ff88; }
+    .t-yellow { color: #ffcc00; }
+    .t-red    { color: #ff5566; }
+    .t-blue   { color: #66aaff; }
+    .t-gray   { color: #6666aa; }
+    .t-white  { color: #e0e0f0; }
+    .t-purple { color: #cc88ff; }
+
+    /* SOS */
+    .sos-panel {
+      background: #1a0a0a;
+      border: 2px solid #ff334488;
+      border-radius: 16px;
+      padding: 28px;
+      text-align: center;
+    }
+    .sos-btn {
+      display: inline-block;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ff2233, #990011);
+      border: 4px solid #ff334488;
+      font-size: 2rem;
+      font-weight: 900;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 0 30px #ff334455;
+      margin: 24px auto;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column;
+      letter-spacing: 2px;
+    }
+    .sos-btn:hover { transform: scale(1.06); box-shadow: 0 0 50px #ff3344aa; }
+
+    /* TOAST */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: #1a1a3a;
+      border: 1px solid #4444ff44;
+      border-radius: 12px;
+      padding: 14px 22px;
+      font-size: 0.9rem;
+      color: #e0e0f0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 999;
+      max-width: 320px;
+    }
+    #toast.show { opacity: 1; }
+
+    /* SEAT MAP */
+    .seat-map {
+      display: grid;
+      grid-template-columns: repeat(5, 40px);
+      gap: 8px;
+      margin: 16px 0;
+    }
+    .seat {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+    .seat.available { background: #1e1e4a; border-color: #4444aa; color: #8888cc; }
+    .seat.available:hover { background: #3333aa; border-color: #8888ff; color: #fff; }
+    .seat.taken { background: #2a1a1a; border-color: #aa2233; color: #ff5566; cursor: not-allowed; }
+    .seat.selected { background: #22aa55; border-color: #44ff88; color: #fff; }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: #000a; z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #13132a;
+      border: 1px solid #3a3a6a;
+      border-radius: 16px;
+      padding: 30px;
+      width: 480px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h3 { color: #a0a0ff; margin-bottom: 20px; font-size: 1.1rem; }
+    .modal-close {
+      float: right; background: none; border: none; color: #8888cc;
+      font-size: 1.4rem; cursor: pointer; line-height: 1;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #12122a; }
+    ::-webkit-scrollbar-thumb { background: #3a3a6a; border-radius: 4px; }
+
+    .divider { border: none; border-top: 1px solid #2a2a4a; margin: 20px 0; }
+    .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.88rem; }
+    .alert-info { background: #1a1a3a; border: 1px solid #4444aa44; color: #8888cc; }
+
+    @media (max-width: 640px) {
+      .sidebar { width: 56px; }
+      .sidebar-btn span { display: none; }
+      .main-layout { flex-direction: column; height: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚌</div>
+  <div>
+    <h1>Bus Simulator in C</h1>
+    <p>SmartBus Booking &amp; Management System</p>
+  </div>
+  <div class="live-time">
+    <div style="font-size:0.75rem; color:#6666aa;">LIVE TIME</div>
+    <span id="clock">--:--:--</span>
+    <div id="date-display" style="font-size:0.75rem; color:#6666aa;"></div>
+  </div>
+</header>
+
+<div class="main-layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <button class="sidebar-btn active" onclick="showPanel('dashboard')">
+      <span class="icon">📊</span><span>Dashboard</span>
+    </button>
+    <button class="sidebar-btn" onclick="showPanel('find')">
+      <span class="icon">🔍</span><span>Find Bus</span>
+    </button>
+    <button class="sidebar-btn" onclick="showPanel('routes')">
+      <span class="icon">📋</span><span>All Routes</span>
+    </button>
+    <button class="sidebar-btn" onclick="showPanel('book')">
+      <span class="icon">🎫</span><span>Book Ticket</span>
+    </button>
+    <button class="sidebar-btn" onclick="showPanel('bookings')">
+      <span class="icon">📂</span><span>My Bookings</span>
+    </button>
+    <button class="sidebar-btn" onclick="showPanel('sos')">
+      <span class="icon">🚨</span><span>Emergency</span>
+    </button>
+    <button class="sidebar-btn" onclick="showPanel('terminal')">
+      <span class="icon">💻</span><span>Terminal</span>
+    </button>
+  </nav>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- DASHBOARD -->
+    <div id="panel-dashboard" class="panel active">
+      <div class="panel-title">📊 Dashboard</div>
+      <div class="stats-row" id="stats-row"></div>
+      <div class="panel-title" style="font-size:1rem; margin-bottom:12px;">🚌 All Buses Overview</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Bus ID</th><th>Route</th><th>Driver</th>
+            <th>Departure</th><th>Arrival</th><th>Seats</th><th>Safety</th><th>Type</th>
+          </tr></thead>
+          <tbody id="dashboard-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FIND BUS -->
+    <div id="panel-find" class="panel">
+      <div class="panel-title">🔍 Find Bus Between Cities</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>From</label>
+          <select id="find-from"></select>
+        </div>
+        <div class="form-group">
+          <label>To</label>
+          <select id="find-to"></select>
+        </div>
+        <div class="form-group" style="justify-content:flex-end;">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" onclick="findBuses()">🔍 Search</button>
+        </div>
+      </div>
+      <div id="find-results"></div>
+    </div>
+
+    <!-- ALL ROUTES -->
+    <div id="panel-routes" class="panel">
+      <div class="panel-title">📋 All Routes from City</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Source City</label>
+          <select id="routes-city"></select>
+        </div>
+        <div class="form-group" style="justify-content:flex-end;">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" onclick="showRoutes()">📋 Show Routes</button>
+        </div>
+      </div>
+      <div id="routes-results"></div>
+    </div>
+
+    <!-- BOOK TICKET -->
+    <div id="panel-book" class="panel">
+      <div class="panel-title">🎫 Book a Ticket</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>From</label>
+          <select id="book-from" onchange="updateBookTo()"></select>
+        </div>
+        <div class="form-group">
+          <label>To</label>
+          <select id="book-to" onchange="loadBookBuses()"></select>
+        </div>
+      </div>
+      <div id="bus-list-book"></div>
+      <div id="seat-section" style="display:none;">
+        <hr class="divider"/>
+        <div class="panel-title" style="font-size:1rem;">💺 Select Seat</div>
+        <div class="seat-map" id="seat-map"></div>
+        <div id="selected-seat-info" style="color:#8888cc; font-size:0.85rem; margin-bottom:12px;"></div>
+        <hr class="divider"/>
+        <div class="panel-title" style="font-size:1rem;">👤 Passenger Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="p-name" placeholder="Avidan Bhujbal"/>
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="p-phone" placeholder="+91 9999999999"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="p-email" placeholder="you@email.com"/>
+          </div>
+        </div>
+        <button class="btn btn-success" onclick="confirmBooking()">✅ Confirm Booking</button>
+      </div>
+    </div>
+
+    <!-- MY BOOKINGS -->
+    <div id="panel-bookings" class="panel">
+      <div class="panel-title">📂 My Bookings</div>
+      <div class="alert alert-info">All bookings for this session are listed below. Cancel any active booking.</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Booking ID</th><th>Bus</th><th>Route</th><th>Passenger</th>
+            <th>Seat</th><th>Time</th><th>Status</th><th>Action</th>
+          </tr></thead>
+          <tbody id="bookings-table"></tbody>
+        </table>
+      </div>
+      <div id="no-bookings" style="text-align:center; padding:40px; color:#5555aa; display:none;">
+        No bookings yet. Book a ticket first!
+      </div>
+    </div>
+
+    <!-- SOS -->
+    <div id="panel-sos" class="panel">
+      <div class="panel-title">🚨 Emergency SOS</div>
+      <div class="sos-panel">
+        <p style="color:#cc4455; font-size:1rem; margin-bottom:8px;">Select your bus and press SOS to alert emergency contacts.</p>
+        <div class="form-row" style="justify-content:center; max-width:360px; margin:0 auto;">
+          <div class="form-group">
+            <label>Your Bus ID</label>
+            <select id="sos-bus-select"></select>
+          </div>
+        </div>
+        <button class="sos-btn" onclick="triggerSOS()">
+          <span>🚨</span>
+          <span style="font-size:0.9rem;">SOS</span>
+        </button>
+        <div id="sos-output"></div>
+      </div>
+    </div>
+
+    <!-- TERMINAL -->
+    <div id="panel-terminal" class="panel">
+      <div class="panel-title">💻 System Terminal</div>
+      <div id="terminal"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- BOOKING MODAL -->
+<div class="modal-overlay" id="booking-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('booking-modal')">✕</button>
+    <h3>🎫 Booking Confirmed!</h3>
+    <div id="modal-content"></div>
+    <br/>
+    <button class="btn btn-primary" onclick="closeModal('booking-modal')">Close</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ===================== DATA =====================
+const buses = [
+  {id:101,from:"Pune",to:"Mumbai",dep:"06:30",arr:"10:30",driver:"Raj",driverRating:4,routeSafety:4,route:"Pune-NH48-Khandala",totalSeats:40,availSeats:35},
+  {id:102,from:"Pune",to:"Mumbai",dep:"09:00",arr:"13:30",driver:"Anil",driverRating:3,routeSafety:2,route:"Pune-NH48-Lonavala",totalSeats:40,availSeats:38},
+  {id:103,from:"Pune",to:"Nashik",dep:"07:00",arr:"11:00",driver:"Vijay",driverRating:5,routeSafety:4,route:"Pune-Sangamner-Nashik",totalSeats:35,availSeats:30},
+  {id:104,from:"Mumbai",to:"Pune",dep:"21:00",arr:"01:00",driver:"Suresh",driverRating:4,routeSafety:4,route:"Mumbai-NH48-Panvel",totalSeats:40,availSeats:32},
+  {id:105,from:"Pune",to:"Kolhapur",dep:"08:00",arr:"12:00",driver:"Kiran",driverRating:3,routeSafety:3,route:"Pune-Satara-Kolhapur",totalSeats:45,availSeats:40},
+  {id:106,from:"Nashik",to:"Pune",dep:"22:00",arr:"02:00",driver:"Ramesh",driverRating:4,routeSafety:3,route:"Nashik-Sangamner-Pune",totalSeats:35,availSeats:28},
+  {id:107,from:"Pune",to:"Mumbai",dep:"14:00",arr:"18:00",driver:"Mahesh",driverRating:4,routeSafety:4,route:"Pune-NH48-Khopoli",totalSeats:40,availSeats:36},
+  {id:108,from:"Pune",to:"Nashik",dep:"15:00",arr:"19:00",driver:"Sunil",driverRating:3,routeSafety:3,route:"Pune-Shirdi-Nashik",totalSeats:35,availSeats:31},
+  {id:109,from:"Mumbai",to:"Nashik",dep:"10:00",arr:"15:00",driver:"Ajay",driverRating:2,routeSafety:2,route:"Mumbai-NashikRd-Igatpuri",totalSeats:40,availSeats:25},
+  {id:110,from:"Kolhapur",to:"Pune",dep:"16:00",arr:"20:00",driver:"Prakash",driverRating:4,routeSafety:3,route:"Kolhapur-Satara-Pune",totalSeats:45,availSeats:42},
+];
+
+let bookings = [];
+let bookingCount = 0;
+let selectedBusIndex = -1;
+let selectedSeat = -1;
+
+// ===================== UTILS =====================
+function isNight(dep, arr) {
+  const dh = parseInt(dep.split(":")[0]);
+  const ah = parseInt(arr.split(":")[0]);
+  return dh >= 20 || ah >= 20;
+}
+function calcSafety(b) {
+  let s = b.driverRating + b.routeSafety;
+  if (isNight(b.dep, b.arr)) s -= 2;
+  return Math.max(0, s);
+}
+function starRating(n, max=5) {
+  return "★".repeat(n) + "☆".repeat(max-n);
+}
+function safetyBar(score, max=10) {
+  const pct = (score/max)*100;
+  const col = score>=7?"#22cc66":score>=5?"#ffaa00":"#ff4455";
+  return `<div class="safety-bar">
+    <div class="safety-track"><div class="safety-fill" style="width:${pct}%;background:${col}"></div></div>
+    <span style="color:${col};font-weight:700;">${score}/${max}</span>
+  </div>`;
+}
+function getCities() {
+  const s = new Set();
+  buses.forEach(b => { s.add(b.from); s.add(b.to); });
+  return [...s].sort();
+}
+function populateSelects() {
+  const cities = getCities();
+  ["find-from","find-to","routes-city","book-from","book-to"].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = cities.map(c => `<option>${c}</option>`).join("");
+  });
+  const sosEl = document.getElementById("sos-bus-select");
+  sosEl.innerHTML = buses.map(b => `<option value="${b.id}">Bus ${b.id} — ${b.from} → ${b.to} (${b.dep})</option>`).join("");
+}
+function updateBookTo() {
+  loadBookBuses();
+}
+function toast(msg, type="info") {
+  const t = document.getElementById("toast");
+  t.innerHTML = msg;
+  t.style.borderColor = type==="success"?"#22cc6644":type==="error"?"#ff444444":"#4444ff44";
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3000);
+}
+function terminal(msg, cls="t-white") {
+  const t = document.getElementById("terminal");
+  t.innerHTML += `<div class="${cls}">${msg}</div>`;
+  t.scrollTop = t.scrollHeight;
+}
+function openModal(id) { document.getElementById(id).classList.add("open"); }
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+// ===================== PANELS =====================
+function showPanel(name) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".sidebar-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("panel-"+name).classList.add("active");
+  event.currentTarget.classList.add("active");
+  if (name==="bookings") renderBookings();
+}
+
+// ===================== DASHBOARD =====================
+function renderDashboard() {
+  const total = buses.length;
+  const totalSeats = buses.reduce((a,b)=>a+b.totalSeats,0);
+  const takenSeats = buses.reduce((a,b)=>a+(b.totalSeats-b.availSeats),0);
+  const nightBuses = buses.filter(b=>isNight(b.dep,b.arr)).length;
+  document.getElementById("stats-row").innerHTML = `
+    <div class="stat-card"><div class="num">${total}</div><div class="lbl">Total Buses</div></div>
+    <div class="stat-card"><div class="num">${totalSeats}</div><div class="lbl">Total Seats</div></div>
+    <div class="stat-card"><div class="num">${takenSeats}</div><div class="lbl">Booked Seats</div></div>
+    <div class="stat-card"><div class="num">${nightBuses}</div><div class="lbl">Night Buses</div></div>
+    <div class="stat-card"><div class="num">${bookings.filter(b=>b.status).length}</div><div class="lbl">Active Bookings</div></div>
+  `;
+  const tbody = document.getElementById("dashboard-table");
+  tbody.innerHTML = buses.map(b => {
+    const safety = calcSafety(b);
+    const night = isNight(b.dep, b.arr);
+    const full = b.availSeats === 0;
+    return `<tr>
+      <td><span class="badge badge-blue">🚌 ${b.id}</span></td>
+      <td><b>${b.from}</b> → <b>${b.to}</b><br><span style="color:#5555aa;font-size:0.75rem;">${b.route}</span></td>
+      <td>${b.driver}<br><span style="color:#ffaa00;font-size:0.8rem;">${starRating(b.driverRating)}</span></td>
+      <td>${b.dep}</td>
+      <td>${b.arr}</td>
+      <td>${full ? '<span class="badge badge-red">FULL</span>' : `<span style="color:#44dd88">${b.availSeats}</span>/${b.totalSeats}`}</td>
+      <td>${safetyBar(safety)}</td>
+      <td>${night ? '<span class="badge badge-night">🌙 Night</span>' : '<span class="badge badge-green">☀️ Day</span>'}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ===================== FIND BUSES =====================
+function findBuses() {
+  const from = document.getElementById("find-from").value;
+  const to   = document.getElementById("find-to").value;
+  if (from === to) { toast("❌ Source and destination are the same!", "error"); return; }
+  const results = buses.filter(b => b.from===from && b.to===to);
+  const container = document.getElementById("find-results");
+  if (!results.length) {
+    container.innerHTML = `<div class="alert alert-info">❌ No direct buses found from <b>${from}</b> to <b>${to}</b>.</div>`;
+    terminal(`> Search: ${from} → ${to} | No buses found.`, "t-red");
+    return;
+  }
+  terminal(`> Search: ${from} → ${to} | Found ${results.length} bus(es).`, "t-green");
+  container.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Bus ID</th><th>Driver</th><th>Departure</th><th>Arrival</th><th>Seats Left</th><th>Safety</th><th>Type</th><th></th></tr></thead>
+    <tbody>${results.map(b => {
+      const safety = calcSafety(b);
+      const night = isNight(b.dep, b.arr);
+      return `<tr>
+        <td><span class="badge badge-blue">🚌 ${b.id}</span></td>
+        <td>${b.driver} <span style="color:#ffaa00">${starRating(b.driverRating)}</span></td>
+        <td>${b.dep}</td><td>${b.arr}</td>
+        <td><b style="color:#44dd88">${b.availSeats}</b>/${b.totalSeats}</td>
+        <td>${safetyBar(safety)}</td>
+        <td>${night?'<span class="badge badge-night">🌙 Night</span>':'<span class="badge badge-green">☀️ Day</span>'}</td>
+        <td><button class="btn btn-primary" onclick="quickBook(${buses.indexOf(b)})">Book →</button></td>
+      </tr>`;
+    }).join("")}</tbody>
+  </table></div>`;
+}
+
+function quickBook(idx) {
+  selectedBusIndex = idx;
+  document.getElementById("book-from").value = buses[idx].from;
+  updateBookTo();
+  document.getElementById("book-to").value = buses[idx].to;
+  loadBookBuses();
+  showPanelById("book");
+}
+function showPanelById(name) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".sidebar-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("panel-"+name).classList.add("active");
+}
+
+// ===================== ROUTES =====================
+function showRoutes() {
+  const city = document.getElementById("routes-city").value;
+  const results = buses.filter(b => b.from===city || b.to===city);
+  const container = document.getElementById("routes-results");
+  terminal(`> All routes involving: ${city}`, "t-blue");
+  if (!results.length) { container.innerHTML = `<div class="alert alert-info">No routes found.</div>`; return; }
+  container.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Bus ID</th><th>From</th><th>To</th><th>Driver</th><th>Departure</th><th>Safety</th><th>Seats</th></tr></thead>
+    <tbody>${results.map(b => `<tr>
+      <td><span class="badge badge-blue">🚌 ${b.id}</span></td>
+      <td>${b.from}</td><td>${b.to}</td>
+      <td>${b.driver}</td><td>${b.dep}</td>
+      <td>${safetyBar(calcSafety(b))}</td>
+      <td>${b.availSeats}/${b.totalSeats}</td>
+    </tr>`).join("")}</tbody>
+  </table></div>`;
+}
+
+// ===================== BOOK =====================
+function loadBookBuses() {
+  const from = document.getElementById("book-from").value;
+  const to   = document.getElementById("book-to").value;
+  const results = buses.filter(b => b.from===from && b.to===to);
+  const container = document.getElementById("bus-list-book");
+  document.getElementById("seat-section").style.display = "none";
+  selectedBusIndex = -1; selectedSeat = -1;
+  if (!results.length) { container.innerHTML = `<div class="alert alert-info">No buses for this route.</div>`; return; }
+  container.innerHTML = results.map(b => {
+    const idx = buses.indexOf(b);
+    const safety = calcSafety(b);
+    return `<div style="background:#1a1a3a;border:1px solid #3a3a6a;border-radius:12px;padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div><span class="badge badge-blue" style="font-size:1rem;">🚌 ${b.id}</span></div>
+      <div><b>${b.driver}</b><br><span style="color:#ffaa00">${starRating(b.driverRating)}</span></div>
+      <div><b>${b.dep}</b> → <b>${b.arr}</b><br><span style="color:#5555aa;font-size:0.78rem;">${b.route}</span></div>
+      <div>${safetyBar(safety)}</div>
+      <div style="color:#44dd88"><b>${b.availSeats}</b> seats left</div>
+      <button class="btn btn-primary" ${b.availSeats===0?'disabled style="opacity:0.4"':''} onclick="selectBusForBooking(${idx})">
+        ${b.availSeats===0?"Full":"Select →"}
+      </button>
+    </div>`;
+  }).join("");
+}
+
+function selectBusForBooking(idx) {
+  selectedBusIndex = idx;
+  selectedSeat = -1;
+  const b = buses[idx];
+  const taken = b.totalSeats - b.availSeats;
+  const mapEl = document.getElementById("seat-map");
+  mapEl.innerHTML = "";
+  for (let i=1; i<=b.totalSeats; i++) {
+    const div = document.createElement("div");
+    div.className = "seat " + (i<=taken ? "taken" : "available");
+    div.textContent = i;
+    div.title = i<=taken ? "Taken" : "Seat "+i;
+    if (i>taken) div.onclick = () => selectSeat(i, b.totalSeats);
+    mapEl.appendChild(div);
+  }
+  document.getElementById("seat-section").style.display = "block";
+  document.getElementById("selected-seat-info").textContent = "Please select a seat above.";
+  terminal(`> Bus ${b.id} selected. Choose your seat.`, "t-yellow");
+}
+
+function selectSeat(num, total) {
+  selectedSeat = num;
+  document.querySelectorAll(".seat").forEach((el, i) => {
+    if (el.classList.contains("available") || el.classList.contains("selected")) {
+      el.classList.remove("selected");
+      if (i+1 === num) el.classList.add("selected");
+    }
+  });
+  document.getElementById("selected-seat-info").innerHTML = `✅ Seat <b>${num}</b> selected`;
+}
+
+function confirmBooking() {
+  const name  = document.getElementById("p-name").value.trim();
+  const phone = document.getElementById("p-phone").value.trim();
+  const email = document.getElementById("p-email").value.trim();
+  if (!name||!phone||!email) { toast("❌ Please fill all passenger details!", "error"); return; }
+  if (selectedBusIndex < 0) { toast("❌ No bus selected!", "error"); return; }
+  if (selectedSeat < 0) { toast("❌ Please select a seat!", "error"); return; }
+
+  const b = buses[selectedBusIndex];
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-IN") + " " + now.toLocaleDateString("en-IN");
+  const bid = 1000 + bookingCount;
+
+  const booking = { id: bid, busId: b.id, busIndex: selectedBusIndex, from: b.from, to: b.to, dep: b.dep, driver: b.driver, name, phone, email, seat: selectedSeat, time: timeStr, status: true };
+  bookings.push(booking);
+  bookingCount++;
+  buses[selectedBusIndex].availSeats--;
+
+  terminal(`> ✅ Booking confirmed! ID:${bid} | ${b.from}→${b.to} | Seat ${selectedSeat} | Passenger: ${name}`, "t-green");
+
+  document.getElementById("modal-content").innerHTML = `
+    <div style="line-height:2; font-size:0.9rem;">
+      <div>📱 SMS sent to: <b>${phone}</b></div>
+      <div>📧 Email sent to: <b>${email}</b></div>
+      <hr class="divider"/>
+      <div>🎫 <b>Booking ID:</b> ${bid}</div>
+      <div>🚌 <b>Bus:</b> ${b.id} — ${b.from} → ${b.to}</div>
+      <div>👤 <b>Passenger:</b> ${name}</div>
+      <div>💺 <b>Seat:</b> ${selectedSeat}</div>
+      <div>🕐 <b>Departure:</b> ${b.dep}</div>
+      <div>🗓️ <b>Booked at:</b> ${timeStr}</div>
+      <div style="margin-top:12px;padding:10px;background:#1a3a2a;border-radius:8px;color:#44dd88;text-align:center;font-weight:700;">✅ STATUS: CONFIRMED</div>
+    </div>`;
+  openModal("booking-modal");
+  toast("✅ Ticket booked successfully!", "success");
+  renderDashboard();
+  document.getElementById("seat-section").style.display = "none";
+  document.getElementById("p-name").value = "";
+  document.getElementById("p-phone").value = "";
+  document.getElementById("p-email").value = "";
+}
+
+// ===================== BOOKINGS TABLE =====================
+function renderBookings() {
+  const tbody = document.getElementById("bookings-table");
+  const noEl  = document.getElementById("no-bookings");
+  if (!bookings.length) { tbody.innerHTML=""; noEl.style.display="block"; return; }
+  noEl.style.display = "none";
+  tbody.innerHTML = bookings.map(bk => `<tr>
+    <td><b>#${bk.id}</b></td>
+    <td><span class="badge badge-blue">🚌 ${bk.busId}</span></td>
+    <td>${bk.from} → ${bk.to}</td>
+    <td>${bk.name}</td>
+    <td>💺 ${bk.seat}</td>
+    <td style="font-size:0.78rem;color:#6666aa;">${bk.time}</td>
+    <td>${bk.status ? '<span class="badge badge-green">✅ Active</span>' : '<span class="badge badge-red">❌ Cancelled</span>'}</td>
+    <td>${bk.status ? `<button class="btn btn-danger" style="padding:6px 14px;font-size:0.8rem;" onclick="cancelBooking(${bk.id})">Cancel</button>` : "—"}</td>
+  </tr>`).join("");
+}
+
+function cancelBooking(bid) {
+  const bk = bookings.find(b => b.id===bid && b.status);
+  if (!bk) return;
+  bk.status = false;
+  buses[bk.busIndex].availSeats++;
+  terminal(`> ❌ Booking #${bid} cancelled. Seat ${bk.seat} released on Bus ${bk.busId}.`, "t-red");
+  toast(`✅ Booking #${bid} cancelled. Refund processed to ${bk.phone}`, "success");
+  renderBookings();
+  renderDashboard();
+}
+
+// ===================== SOS =====================
+function triggerSOS() {
+  const busId = parseInt(document.getElementById("sos-bus-select").value);
+  const b = buses.find(b => b.id===busId);
+  const now = new Date().toLocaleTimeString("en-IN");
+  const out = document.getElementById("sos-output");
+  out.innerHTML = `
+    <div style="background:#2a0a0a;border:2px solid #ff334488;border-radius:12px;padding:20px;margin-top:20px;text-align:left;font-family:monospace;line-height:2;">
+      <div style="color:#ff4455;font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:12px;">🚨 EMERGENCY SOS ACTIVATED! 🚨</div>
+      <div>🔴 ALERT SENT TO EMERGENCY CONTACTS</div>
+      <div>🚌 Bus ID: <b>${b.id}</b></div>
+      <div>📍 Location: <b>${b.route}</b></div>
+      <div>⏰ Time: <b>${now} IST</b></div>
+      <div>👨‍✈️ Driver: <b>${b.driver}</b></div>
+      <div>📞 Helpline: <b>1800-345-6789</b></div>
+      <div style="margin-top:12px;color:#44ff88;">✅ SOS Message Sent Successfully!</div>
+      <div style="color:#ffaa00;">Help is on the way! Stay safe. 🙏</div>
+    </div>`;
+  terminal(`> 🚨 SOS triggered for Bus ${b.id} at ${b.route} | Time: ${now}`, "t-red");
+  toast("🚨 Emergency SOS sent!", "error");
+}
+
+// ===================== CLOCK =====================
+function updateClock() {
+  const now = new Date();
+  document.getElementById("clock").textContent = now.toLocaleTimeString("en-IN");
+  document.getElementById("date-display").textContent = now.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+}
+
+// ===================== INIT =====================
+populateSelects();
+renderDashboard();
+updateClock();
+setInterval(updateClock, 1000);
+terminal(`> SmartBus system initialized. ${buses.length} buses loaded.`, "t-green");
+terminal(`> System time: ${new Date().toLocaleTimeString("en-IN")} IST`, "t-gray");
+terminal(`> Type actions will be logged here in real-time.`, "t-gray");
+</script>
+</body>
+</html>
